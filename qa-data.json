@@ -1,0 +1,22 @@
+[
+  {
+    "question": "What is JavaScript?",
+    "answer": "JavaScript is a high-level, interpreted programming language that is one of the core technologies of the World Wide Web, alongside HTML and CSS."
+  },
+  {
+    "question": "What is the difference between let and var?",
+    "answer": "The main differences are: let has block scope while var has function scope, let cannot be redeclared in the same scope, and let is not hoisted in the same way as var."
+  },
+  {
+    "question": "What is a closure in JavaScript?",
+    "answer": "A closure is a function that has access to variables in its outer (enclosing) lexical scope, even after the outer function has returned."
+  },
+  {
+    "question": "What is the DOM?",
+    "answer": "The Document Object Model (DOM) is a programming interface for HTML and XML documents. It represents the page structure so that programs can change the document structure, style, and content."
+  },
+  {
+    "question": "What is async/await?",
+    "answer": "Async/await is a modern JavaScript feature that allows you to write asynchronous code in a more synchronous-looking way. The async keyword makes a function return a Promise, and await makes the function wait for that Promise."
+  }
+]
