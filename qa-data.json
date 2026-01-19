@@ -10,5 +10,65 @@
   {
   "question": "For the Level 3 performance (11.5%), what's your hypothesis on why difficulty scaling breaks so dramatically?",
   "answer": "GAIA Level 3 is explicitly the long-horizon regime: it can require arbitrarily long sequences of actions, any number of tools, and broad world access (whereas Level 1 is typically ≤5 steps and Level 2 is ~5–10 steps). \n\nMy hypothesis for the sharp collapse is compounding error + harness fragility:\n\n1) Compounding step reliability: Level 3 success is the product of many correct sub-decisions (plan → search → retrieve → extract → compute → verify → normalize answer). Even modest per-step failure rates lead to near-zero end-to-end success when you need 20–40 meaningful steps.\n\n2) State continuity becomes mandatory: Level 3 disproportionately includes multi-stage extraction + computation. Stateless python execution (or fragile sandboxing) forces recomputation and increases the chance of inconsistent intermediates.\n\n3) Web/search limitations dominate: if Playwright is frequently blocked, Level 3 tasks will either (a) loop on retries, or (b) accept lower-quality evidence, causing downstream extraction and reasoning failures.\n\n4) Context growth / missing compaction: long episodes accumulate tool outputs; without compaction + structured working memory (facts/open questions/intermediates with provenance), the agent loses the thread and restarts sub-plans. This is a known long-running agent failure mode, and it is typically solved by harness-level context management plus aggressive summarization of irrelevant tool outputs.\n\n5) Verification + normalization gaps: GAIA answers are unambiguous and evaluator sensitivity to formatting can turn “nearly correct” into fails. A code-enforced finalization step (type/format validation, unit/rounding checks, date normalization) converts many near-misses.\n\nSo the scaling break is expected given long-horizon requirements plus the specific architectural issues you observed (state loss, tool confusion, browsing brittleness, prompt-only gates). "
-  }
+  },
+  {
+    "question": "How will you reproduce our baseline GAIA score and ensure apples-to-apples comparisons?",
+    "answer": "I will lock down a single, versioned evaluation command/config that runs the GAIA public validation set and emits a deterministic metrics bundle: overall + L1/L2/L3 accuracy, mean/median iterations, tool error rates, and cost. I will also freeze model/version, max-iteration budgets, tool settings, and normalization rules so we can attribute deltas to code changes rather than run variance. GAIA defines levels by step/tool requirements and Level 3 explicitly allows arbitrarily long action sequences, so baseline comparability is critical. "
+    },
+    {
+    "question": "What will Milestone 1 deliver beyond a narrative review of traces?",
+    "answer": "Milestone 1 output is a quantified failure model: (1) a labeled taxonomy for every failed episode (primary + secondary causes), (2) a Pareto chart by GAIA level (e.g., web-block vs state-loss vs extraction vs non-convergence), (3) a golden subset of representative tasks per category for regression testing, and (4) a rewrite decision memo (SDK migration vs incremental) with estimated lift per fix category. GAIA’s level definitions (L1 <= ~5 steps, L2 ~5–10 steps, L3 arbitrarily long sequences) inform prioritization. "
+    },
+    {
+    "question": "How will you stop 10+ iteration thrash loops in a principled way?",
+    "answer": "I implement convergence controls in the harness: (1) tool-call memoization (hash tool name + normalized args; reuse results), (2) novelty detection (block repeated calls that produce no new facts), (3) progress scoring (open-questions set must shrink or strategy changes), and (4) explicit fallback policies (e.g., if browser blocked, switch to API search + HTTP fetch). This turns retries from an emergent behavior into an explicit, bounded policy. "
+    },
+    {
+    "question": "How will you implement persistent Python state across steps (and prove it works)?",
+    "answer": "One Python kernel/session per GAIA episode: the orchestrator creates the session once, routes every python tool call to the same session, and tears it down at the end. I will add integration tests that span multiple tool calls (import once, define variables once, reuse later) and a health-check + restart path that rehydrates minimal state if the session dies. For E2B, I’ll use a template-based sandbox so the session runs in a stable prebuilt environment. "
+    },
+    {
+    "question": "How do you avoid repeated package installs (pandas/requests/etc.) in traces?",
+    "answer": "I will build an E2B sandbox template using an e2b.Dockerfile and reuse the resulting template ID for all episodes. This is exactly what E2B templates are for: preinstall common dependencies so runtime doesn’t waste iterations on pip installs. I will also add a harness gate: if the model attempts 'pip install' for a known preinstalled package, block and redirect to using the existing environment. "
+    },
+    {
+    "question": "How will you handle template readiness and reduce cold-start flakiness?",
+    "answer": "I will use a template 'ready command' (or equivalent) so the snapshot is only taken after readiness checks pass (imports succeed, services started, etc.). This eliminates intermittent 'not ready' errors that masquerade as reasoning failures. "
+    },
+    {
+    "question": "What’s your browsing architecture given Playwright is being blocked?",
+    "answer": "I separate search from retrieval: (1) search via an API-based search tool (stable SERP), (2) fetch via HTTP + extraction pipeline (readability/boilerplate removal + PDF parsing), and (3) browser automation only as a last resort for JS-heavy sites. Additionally, I implement block detection (403/captcha/interstitial classifiers) with domain backoff/blacklist so the agent doesn’t loop on the same blocked target. "
+    },
+    {
+    "question": "How will you manage context growth in long-running (Level 3) episodes?",
+    "answer": "I will enforce structured working memory (facts, open questions, plan, intermediate results with provenance) plus compaction of raw tool outputs. The Claude Agent SDK explicitly supports compaction for long-running agents by summarizing prior messages near context limits; if we stay custom, we replicate the same principle: keep only high-signal artifacts in the prompt and move everything else to external state. "
+    },
+    {
+    "question": "What does an SDK migration look like without stalling delivery?",
+    "answer": "Strangler migration: (1) freeze evaluator and trace schema, (2) port tools 1:1 with strict schemas, (3) run side-by-side on a golden subset until parity, (4) swap in the SDK agent loop, then (5) iterate on compaction, caching, and validation policies. The Agent SDK is explicitly positioned as providing the same agent loop and context management that powers Claude Code, which reduces bespoke harness risk under benchmark pressure. "
+    },
+    {
+    "question": "How will you design and run evals during development (not just final GAIA runs)?",
+    "answer": "I will implement a layered eval strategy: (1) unit tests for tool contracts and validators, (2) golden-subset regression tests (20–40 representative GAIA tasks by failure mode), and (3) nightly full GAIA runs. Anthropic’s eval guidance emphasizes automated evals that can be run during development, which aligns with this approach. "
+    },
+    {
+    "question": "How do you secure an agent that can browse the web and execute code (prompt injection risk)?",
+    "answer": "I implement defense-in-depth: (1) isolate execution (sandbox + least-privilege filesystem), (2) strict network egress controls and allowlists, (3) separate instructions from untrusted content (web text treated as data), (4) tool call approval policies for sensitive actions, and (5) logging + auditing of tool actions. This aligns with Anthropic’s guidance on securing Agent SDK deployments and their published research on prompt injection defenses; OWASP’s prompt injection prevention guidance provides additional concrete controls. "
+    },
+    {
+    "question": "How will you eliminate system prompt contradictions and tool confusion (e.g., two browser APIs)?",
+    "answer": "I reduce model-facing surface area: one canonical set of tool schemas (search, fetch, browser, python), schema validation at the dispatcher boundary, and removal of legacy/duplicate tool definitions from the model context. The system prompt becomes minimal (role + tool schemas + output constraints), while quality gates (format/evidence/verification/max retries) are enforced programmatically in the harness. "
+    },
+    {
+    "question": "How will you improve Level 3 specifically, not just Level 1/2?",
+    "answer": "Level 3 is the long-horizon regime (arbitrarily long action sequences). I focus on step reliability and compounding error: persistent runtime, robust search/fetch (avoid blocks), compaction/structured memory, extraction fallbacks (PDF/table handling), and enforced verification/normalization. This combination improves the probability of completing long chains without derailment, which is exactly what GAIA’s Level 3 definition stresses. "
+    },
+    {
+    "question": "How will you handle tool integration at scale without custom one-offs?",
+    "answer": "I prefer protocol-based integration where possible. MCP is an open standard introduced by Anthropic to connect tools/data sources to AI applications through a consistent interface, reducing fragmentation and duplicated integration effort. If MCP fits your ecosystem, we can standardize integrations and simplify tool discovery/maintenance. "
+    },
+    {
+    "question": "What will your daily progress reporting look like (to avoid 'output dumps')?",
+    "answer": "Daily deliverables are measurable: a diff of GAIA metrics (overall/L1/L2/L3), iteration distribution changes, tool error rates (403/captcha/timeouts), and a short changelog mapping each code change to the expected failure category reduction. Commits are small and reviewable (feature flags where needed), with golden-subset runs on every PR and a full GAIA run on a set cadence. "
+    }
   ]

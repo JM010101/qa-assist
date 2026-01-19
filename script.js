@@ -1,3 +1,7 @@
+// Store the original data and filtered data
+let allQAData = [];
+let filteredQAData = [];
+
 // Load and display Q&A data from external JSON file
 async function loadQAData() {
     try {
@@ -6,7 +10,10 @@ async function loadQAData() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
+        allQAData = data;
+        filteredQAData = data;
         displayQuestions(data);
+        setupSearch();
     } catch (error) {
         console.error('Error loading Q&A data:', error);
         document.getElementById('qa-list').innerHTML = 
@@ -107,6 +114,51 @@ function setupToggleListeners() {
             const index = parseInt(header.getAttribute('data-index'));
             toggleAnswer(index);
         });
+    });
+}
+
+// Search functionality
+function setupSearch() {
+    const searchInput = document.getElementById('search-input');
+    const noResults = document.getElementById('no-results');
+    
+    searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.trim().toLowerCase();
+        
+        if (searchTerm === '') {
+            // Show all questions if search is empty
+            filteredQAData = allQAData;
+            displayQuestions(allQAData);
+            noResults.style.display = 'none';
+        } else {
+            // Filter questions and answers
+            filteredQAData = allQAData.filter(item => {
+                const questionMatch = item.question.toLowerCase().includes(searchTerm);
+                const answerMatch = item.answer.toLowerCase().includes(searchTerm);
+                return questionMatch || answerMatch;
+            });
+            
+            if (filteredQAData.length === 0) {
+                // Show no results message
+                document.getElementById('qa-list').innerHTML = '';
+                noResults.style.display = 'block';
+            } else {
+                // Display filtered results
+                noResults.style.display = 'none';
+                displayQuestions(filteredQAData);
+            }
+        }
+    });
+    
+    // Clear search on Escape key
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            searchInput.value = '';
+            filteredQAData = allQAData;
+            displayQuestions(allQAData);
+            noResults.style.display = 'none';
+            searchInput.blur();
+        }
     });
 }
 

@@ -12,8 +12,15 @@
             <h1>Questions & Answers</h1>
         </header>
         <main>
+            <div class="search-container">
+                <input type="text" id="search-input" class="search-input" placeholder="Search questions and answers..." autocomplete="off">
+                <span class="search-icon">🔍</span>
+            </div>
             <div id="qa-list" class="qa-list">
                 <!-- Questions will be dynamically loaded here -->
+            </div>
+            <div id="no-results" class="no-results" style="display: none;">
+                <p>No results found. Try a different search term.</p>
             </div>
         </main>
     </div>
