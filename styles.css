@@ -97,17 +97,41 @@ header h1 {
     overflow: hidden;
     transition: max-height 0.3s ease, padding 0.3s ease;
     background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
 }
 
 .answer-container.active {
-    max-height: 500px;
-    padding: 20px;
+    max-height: 2000px;
+    padding: 24px 28px;
 }
 
 .answer-text {
-    color: #555;
-    line-height: 1.6;
-    font-size: 1rem;
+    color: #2c3e50;
+    line-height: 1.75;
+    font-size: 1.05rem;
+    font-weight: 400;
+    text-align: left;
+    letter-spacing: 0.01em;
+    word-spacing: 0.05em;
+    margin: 0;
+}
+
+.answer-text p {
+    margin: 0 0 1em 0;
+}
+
+.answer-text p:last-child {
+    margin-bottom: 0;
+}
+
+.answer-text strong {
+    font-weight: 600;
+    color: #1a252f;
+}
+
+.answer-text em {
+    font-style: italic;
+    color: #34495e;
 }
 
 .error-message {
@@ -130,6 +154,10 @@ header h1 {
         font-size: 2rem;
     }
     
+    .container {
+        padding: 0 20px;
+    }
+    
     .question-header {
         padding: 15px;
     }
@@ -142,5 +170,14 @@ header h1 {
         width: 35px;
         height: 35px;
         font-size: 1rem;
+    }
+    
+    .answer-container.active {
+        padding: 18px 20px;
+    }
+    
+    .answer-text {
+        font-size: 0.95rem;
+        line-height: 1.7;
     }
 }

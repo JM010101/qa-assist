@@ -14,6 +14,22 @@ async function loadQAData() {
     }
 }
 
+// Format answer text to handle line breaks and paragraphs
+function formatAnswer(answer) {
+    if (!answer) return '';
+    
+    // Split by double line breaks (paragraphs) or single line breaks
+    const paragraphs = answer.split(/\n\s*\n|\n/).filter(p => p.trim().length > 0);
+    
+    if (paragraphs.length === 1) {
+        // Single paragraph, just return it
+        return paragraphs[0].trim();
+    } else {
+        // Multiple paragraphs, wrap each in <p> tags
+        return paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
+    }
+}
+
 function displayQuestions(qaData) {
     const qaList = document.getElementById('qa-list');
     qaList.innerHTML = '';
@@ -21,6 +37,7 @@ function displayQuestions(qaData) {
     qaData.forEach((item, index) => {
         const qaItem = document.createElement('div');
         qaItem.className = 'qa-item';
+        const formattedAnswer = formatAnswer(item.answer);
         qaItem.innerHTML = `
             <div class="question-header" data-index="${index}">
                 <div class="question-text">${item.question}</div>
@@ -29,7 +46,7 @@ function displayQuestions(qaData) {
                 </button>
             </div>
             <div class="answer-container" data-index="${index}">
-                <div class="answer-text">${item.answer}</div>
+                <div class="answer-text">${formattedAnswer}</div>
             </div>
         `;
         qaList.appendChild(qaItem);
