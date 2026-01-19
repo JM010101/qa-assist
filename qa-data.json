@@ -70,5 +70,101 @@
     {
     "question": "What will your daily progress reporting look like (to avoid 'output dumps')?",
     "answer": "Daily deliverables are measurable: a diff of GAIA metrics (overall/L1/L2/L3), iteration distribution changes, tool error rates (403/captcha/timeouts), and a short changelog mapping each code change to the expected failure category reduction. Commits are small and reviewable (feature flags where needed), with golden-subset runs on every PR and a full GAIA run on a set cadence. "
-    }
+    },
+    {
+      "question": "How will you reproduce our baseline GAIA score and ensure results are comparable run-to-run?",
+      "answer": "I will lock a single versioned evaluation entrypoint (command + config) and freeze: model version, tool settings, max-iteration budgets, timeouts, and scoring/normalization rules. Then I will run the GAIA public validation set and store a metrics bundle (overall/L1/L2/L3, iteration distribution, tool error rates, cost). GAIA’s public validation set is commonly reported as 165 questions, so I will ensure we are running the same split and identical evaluator settings for apples-to-apples comparisons. "
+      },
+      {
+      "question": "What’s your plan for Milestone 1 deliverables (what exactly will we get)?",
+      "answer": "A quantified failure model, not a narrative: (1) per-task labeling into a failure taxonomy (primary + secondary cause), (2) Pareto charts by GAIA level, (3) a golden regression subset (20–40 tasks covering dominant failure modes), (4) a rewrite decision memo (Agent SDK migration vs incremental) with estimated impact per fix, and (5) an implementation backlog prioritized by expected L1/L2/L3 lift and engineering risk. "
+      },
+      {
+      "question": "How do you diagnose the 65 tasks that loop 10+ iterations beyond 'no persistent runtime'?",
+      "answer": "I treat 10+ iteration loops as convergence-control failure: repeated equivalent tool calls without novelty, missing caching/memoization, tool-contract confusion (duplicate browser APIs or schema drift), and prompt-only 'quality gates' not enforced by code. I’ll measure repeated-call rate, stagnation rate (no new facts added per iteration), and domain-level block rate; then implement novelty guards, caching, strategy-shift rules, and enforced validators to bound retries. "
+      },
+      {
+      "question": "Why does Level 3 collapse so hard (11.5%) compared to Levels 1/2?",
+      "answer": "GAIA Level 3 is the long-horizon regime: it can require arbitrarily long sequences of actions and any number of tools, and the paper notes Level 3 questions can take more than 40 steps. Small per-step failure probabilities compound across long trajectories, so harness reliability (state, tool robustness, context management, and convergence policies) dominates Level 3 outcomes. "
+      },
+      {
+      "question": "How will you implement persistent Python state across steps?",
+      "answer": "One Python session per GAIA episode (task): create a single kernel/sandbox at episode start, route every python tool call to that same session, persist files/artifacts, and destroy at episode end. Add health checks and a controlled restart that rehydrates minimal state from structured episode memory if the session dies. This is the minimum requirement for multi-step computation and artifact workflows. "
+      },
+      {
+      "question": "How will you eliminate repeated package installs (pandas/requests/etc.)?",
+      "answer": "Use a sandbox template with dependencies baked in (e.g., an E2B template via an e2b.Dockerfile and a reusable template ID), and add a harness guardrail to block redundant installs and redirect to preinstalled libs. This reduces latency, cost, and iteration thrash caused by 'pip install' loops. "
+      },
+      {
+      "question": "What is your web browsing/search architecture given Playwright is getting flagged?",
+      "answer": "Separate search from retrieval: (1) use an API-based search tool for stable SERP results, (2) use HTTP fetch + extraction (readability/boilerplate removal; PDF parsing) for most pages, (3) use browser automation only as a fallback for JS-heavy targets, plus detection of block signals (403/captcha/interstitial) with domain backoff/blacklist to prevent retry loops. "
+      },
+      {
+      "question": "How do you handle PDFs, tables, and hard extraction tasks reliably?",
+      "answer": "Layered extraction: try text extraction first, then table extraction fallback, then render/screenshot + OCR only when necessary. Store provenance (URL + extracted snippets/offsets) and run a verification pass that rechecks the extracted value before final answer formatting. This reduces 'found it but misread it' errors typical in multi-tool benchmarks. "
+      },
+      {
+      "question": "How will you manage context growth and memory for long-running episodes?",
+      "answer": "Structured working memory outside the prompt (facts, open questions, plan, intermediate resultsa intermediates with provenance) plus compaction of raw tool outputs as context approaches limits. If we migrate to Anthropic’s Agent SDK, we can leverage its compaction feature for long-running agents; if we stay custom, we replicate the same principle: keep only high-signal state in context and push raw artifacts to external storage/state. "
+      },
+      {
+      "question": "Do you recommend an architectural rewrite to the Anthropic Agent SDK or incremental fixes first?",
+      "answer": "I’ll decide after Milestone 1 based on trace evidence. If dominant failures are harness-level (context management, tool loop correctness, compaction, stagnation), migrating to the Agent SDK reduces bespoke orchestration risk and aligns with Anthropic’s recommended long-running agent patterns. If failures are localized (stateless python executor, browsing stack, tool schema mismatch), incremental fixes can deliver faster uplift in a week. "
+      },
+      {
+      "question": "If we migrate to the Agent SDK, what’s your migration plan to avoid downtime?",
+      "answer": "Strangler approach: freeze evaluator + trace schema; port tools 1:1 with strict schemas and validation; run side-by-side on a golden subset to reach parity; then swap the core loop; finally optimize compaction/caching/validators. This keeps scoring and observability stable while the harness is replaced. "
+      },
+      {
+      "question": "How will you ensure tool schemas are correct and avoid tool-contract drift?",
+      "answer": "Single canonical tool surface (search, fetch, browser, python) with strict JSON schema validation at the dispatcher boundary. If the model emits invalid args, the harness returns a structured schema error and triggers a repair step. I also add integration tests to ensure the model-facing tool spec matches the runtime dispatcher. "
+      },
+      {
+      "question": "How do you move 'quality gates' out of the prompt and into code?",
+      "answer": "Implement programmatic validators: final answer type/format validation, unit/rounding/date normalization checks, evidence requirements for web-derived claims, and a mandatory verification pass for multi-step computations. Prompt becomes minimal (role + tool schemas + output constraints); enforcement happens in code. "
+      },
+      {
+      "question": "How will you reduce context usage and improve long-horizon performance beyond compaction?",
+      "answer": "Use programmatic tool calling and tool search/discovery patterns so tool invocation and tool metadata do not unnecessarily inflate the conversational context. Anthropic describes programmatic tool calling as a way to invoke tools in a code execution environment and reduce impact on the model’s context window. "
+      },
+      {
+      "question": "What is your plan for deterministic debugging given web drift and non-determinism?",
+      "answer": "Record/replay: persist tool inputs/outputs (search results, fetch payloads, parsed text, python outputs) and provide a replay mode that bypasses live web. Use replay for PR validation and regression debugging; use live mode for final GAIA scoring. This avoids chasing phantom regressions caused by changing web results. "
+      },
+      {
+      "question": "How will you quantify improvements besides accuracy?",
+      "answer": "In addition to overall/L1/L2/L3 accuracy, I will track: mean/median iterations per episode, repeated tool-call rate, blocked-domain rate, tool error rate (timeouts/403/captcha), time-to-first-useful-fact, and cost per solved task. These are leading indicators that typically move before accuracy fully catches up. "
+      },
+      {
+      "question": "How will you select iteration budgets and stop conditions to avoid cost blowups?",
+      "answer": "Set level-aware iteration budgets and enforce stagnation-based early stopping: if novelty/progress metrics show no new facts after N iterations, force strategy shift; cap per-domain retries; cap tool call budgets; and require a finalization step with verification/normalization before termination. This converts unbounded thrash into bounded policy. "
+      },
+      {
+      "question": "How will you address prompt injection risk when the agent browses the open web?",
+      "answer": "Treat all external content as untrusted data: separate instructions from retrieved content, validate outputs against schemas, restrict tool permissions (least privilege), implement allowlists/egress controls, and log/audit tool actions. OWASP’s prompt injection guidance and OWASP’s GenAI risk taxonomy emphasize prompt injection as a top risk and recommend layered mitigations and validation. "
+      },
+      {
+      "question": "How will you harden the system against the model hallucinating tool outputs or citations?",
+      "answer": "Enforce provenance: tool results are stored as structured artifacts and the model must reference artifact IDs/snippets in a verifier step. If the final answer cannot be supported by recorded tool artifacts, the validator fails and triggers a repair path. This prevents 'fabricated evidence' from passing through the harness. "
+      },
+      {
+      "question": "How will you handle multiple overlapping browser APIs currently in the prompt/tooling?",
+      "answer": "I will collapse to one browser tool and one fetch tool with clear responsibilities, remove the duplicate/legacy APIs from the model-facing tool list, and update the system prompt accordingly. Duplicate APIs increase schema confusion and invalid calls, which is a known driver of long retry loops. "
+      },
+      {
+      "question": "What is your approach to tool writing and tool descriptions so the model uses them correctly?",
+      "answer": "Treat tool design as product design: crisp descriptions, explicit args/returns, failure modes, and examples. Anthropic emphasizes that tool descriptions/specs are a primary lever for improving whether agents call tools correctly and for diagnosing miscalls. "
+      },
+      {
+      "question": "What access and artifacts do you need from us on day one?",
+      "answer": "Repo access (or full source drop), the exact GAIA evaluation command/config used for the baseline, the evaluator/scoring rules, trace storage access (viewer + raw JSONL), and credentials for model + sandbox + search/fetch providers. Without matching the baseline run, we cannot attribute improvements to changes reliably. "
+      },
+      {
+      "question": "How will you structure daily progress so it’s not 'LLM output dumps'?",
+      "answer": "Daily commits with small, reviewable diffs; a daily metrics delta (overall/L1/L2/L3 plus iteration/tool-error changes); and a short changelog mapping each change to a failure category. I will also maintain a golden subset and run it per-PR, with full GAIA runs on a fixed cadence to prevent regressions. "
+      },
+      {
+      "question": "How will you explain realistic expectations on the target scores, especially for Level 3?",
+      "answer": "I will treat targets as outcome goals but manage the work via leading indicators (iteration reduction, tool reliability, extraction correctness, and compaction effectiveness) because Level 3 performance is dominated by long-horizon reliability per GAIA’s definition. We should see iteration and tool-error improvements first, then accuracy lifts as compounding failure probability drops. "
+      }
   ]
